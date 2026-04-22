@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleCity MVP</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="ui-layer">
+        <header class="top-bar">
+            <h1 class="game-title">SimpleCity</h1>
+            <div class="stats">
+                <div class="stat-box"><span class="stat-label">Date</span><span id="date-display">Jan 2024</span></div>
+                <div class="stat-box"><span class="stat-label">Funds</span><span id="money-display">₡ 10,000</span></div>
+                <div class="stat-box"><span class="stat-label" style="color: #4ade80;">Income</span><span id="revenue-display" style="color: #4ade80;">+₡0</span></div>
+                <div class="stat-box"><span class="stat-label" style="color: #ef4444;">Upkeep</span><span id="cost-display" style="color: #ef4444;">-₡0</span></div>
+                <div class="stat-box"><span class="stat-label">Pop</span><span id="pop-display">0</span></div>
+                <div class="stat-box"><span class="stat-label">Demand</span><span id="demand-display" style="font-size:0.9rem; font-weight:600; color:var(--accent)">R:- C:- I:-</span></div>
+                <div class="stat-box"><span class="stat-label" style="color: #facc15;">Power</span><span id="power-stats-display" style="font-size:0.9rem; font-weight:600;">0/0</span></div>
+                <div class="stat-box"><span class="stat-label" style="color: #06b6d4;">Water</span><span id="water-stats-display" style="font-size:0.9rem; font-weight:600;">0/0</span></div>
+            </div>
+            <div class="time-controls" style="display: flex; gap: 8px; margin-left: auto;">
+                <button class="tool-btn time-btn" data-speed="0" style="padding: 6px 12px; font-size: 0.85rem;">Pause</button>
+                <button class="tool-btn time-btn active" data-speed="1" style="padding: 6px 12px; font-size: 0.85rem;">Play</button>
+                <button class="tool-btn time-btn" data-speed="3" style="padding: 6px 12px; font-size: 0.85rem;">FFWD</button>
+            </div>
+        </header>
+
+        <aside class="tool-panel" style="overflow-y: auto;">
+            <h2>Tools</h2>
+            
+            <details class="tool-category" open>
+                <summary>Zoning & Modes</summary>
+                <div class="category-content">
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                         <button class="tool-btn active" id="mode-brush" style="flex: 1; padding: 5px; margin: 0; text-align: center; border-left: none; border-bottom: 2px solid transparent;">Brush</button>
+                         <button class="tool-btn" id="mode-area" style="flex: 1; padding: 5px; margin: 0; text-align: center; border-left: none; border-bottom: 2px solid transparent;">Area</button>
+                    </div>
+                    <div class="tool-grid">
+                        <button class="tool-btn active" data-tool="select">Select / Pan</button>
+                        <button class="tool-btn" data-tool="bulldoze">Bulldoze (₡<span class="cost-bulldoze"></span>)</button>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">Light / Dense</div>
+                    <div class="tool-grid" style="margin-top: 5px;">
+                        <button class="tool-btn" data-tool="zone-res" style="border-left: 4px solid #4ade80;">Res (₡<span class="cost"></span>)</button>
+                        <button class="tool-btn" data-tool="zone-dense-res" style="border-left: 8px solid #22c55e;">D. Res (₡<span class="cost"></span>)</button>
+                    </div>
+                    <div class="tool-grid" style="margin-top: 5px;">
+                        <button class="tool-btn" data-tool="zone-com" style="border-left: 4px solid #3b82f6;">Com (₡<span class="cost"></span>)</button>
+                        <button class="tool-btn" data-tool="zone-dense-com" style="border-left: 8px solid #2563eb;">D. Com (₡<span class="cost"></span>)</button>
+                    </div>
+                    <div class="tool-grid" style="margin-top: 5px;">
+                        <button class="tool-btn" data-tool="zone-ind" style="border-left: 4px solid #eab308;">Ind (₡<span class="cost"></span>)</button>
+                        <button class="tool-btn" data-tool="zone-dense-ind" style="border-left: 8px solid #ca8a04;">D. Ind (₡<span class="cost"></span>)</button>
+                    </div>
+                </div>
+            </details>
+
+            <details class="tool-category" open>
+                <summary>Infrastructure</summary>
+                <div class="category-content tool-grid">
+                    <button class="tool-btn" data-tool="road" style="border-left: 4px solid #9ca3af;">Road (₡<span class="cost"></span>)</button>
+                    <button class="tool-btn" data-tool="power-coal" style="border-left: 4px solid #facc15;">Power (₡<span class="cost"></span>)</button>
+                    <button class="tool-btn" data-tool="water-pump" style="border-left: 4px solid #06b6d4;">Water (₡<span class="cost"></span>)</button>
+                </div>
+            </details>
+
+            <details class="tool-category" open>
+                <summary>Civic Services</summary>
+                <div class="category-content tool-grid">
+                    <button class="tool-btn" data-tool="police" style="border-left: 4px solid #3b82f6;">Police (₡<span class="cost"></span>)</button>
+                    <button class="tool-btn" data-tool="park" style="border-left: 4px solid #22c55e;">Park (₡<span class="cost"></span>)</button>
+                    <button class="tool-btn" data-tool="school" style="border-left: 4px solid #f97316;">School (₡<span class="cost"></span>)</button>
+                    <button class="tool-btn" data-tool="hospital" style="border-left: 4px solid #ef4444;">Hosp (₡<span class="cost"></span>)</button>
+                </div>
+            </details>
+
+            <details class="tool-category" open>
+                <summary>Data Views</summary>
+                <div class="category-content tool-grid">
+                    <button class="tool-btn active" data-view="normal">Normal</button>
+                    <button class="tool-btn" data-view="desirability">Land Val</button>
+                    <button class="tool-btn" data-view="crime">Crime</button>
+                </div>
+            </details>
+
+            <details class="tool-category">
+                <summary>System & Economy</summary>
+                <div class="category-content tool-grid">
+                    <button class="tool-btn" id="btn-budget" style="border-left: 4px solid #a855f7; grid-column: span 2;">Budget & Finance</button>
+                    <button class="tool-btn" id="btn-save">Save</button>
+                    <button class="tool-btn" id="btn-reset" style="border-left: 4px solid #ef4444;">Reset</button>
+                </div>
+            </details>
+        </aside>
+
+        <div id="news-ticker-container">
+            <div id="news-ticker">Welcome to SimpleCity! Mayor takes office today.</div>
+        </div>
+        
+        <div id="budget-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>City Budget & Ledger</h2>
+                <div class="ledger-section">
+                    <h3>Tax Rates</h3>
+                    <div class="slider-group">
+                        <label>Residential (<span id="tax-r-display">7%</span>)</label>
+                        <input type="range" id="tax-r-slider" min="0" max="20" value="7">
+                    </div>
+                    <div class="slider-group">
+                        <label>Commercial (<span id="tax-c-display">7%</span>)</label>
+                        <input type="range" id="tax-c-slider" min="0" max="20" value="7">
+                    </div>
+                    <div class="slider-group">
+                        <label>Industrial (<span id="tax-i-display">7%</span>)</label>
+                        <input type="range" id="tax-i-slider" min="0" max="20" value="7">
+                    </div>
+                </div>
+                <div class="ledger-section">
+                    <h3>Department Funding</h3>
+                    <div class="slider-group">
+                        <label>Police Dept (<span id="fund-p-display">100%</span>)</label>
+                        <input type="range" id="fund-p-slider" min="0" max="100" value="100">
+                    </div>
+                    <div class="slider-group">
+                        <label>Road Maintenance (<span id="fund-r-display">100%</span>)</label>
+                        <input type="range" id="fund-r-slider" min="0" max="100" value="100">
+                    </div>
+                </div>
+                <div class="ledger-section">
+                    <h3>Ledger</h3>
+                    <table class="ledger-table">
+                        <tr><td>Taxes (R)</td><td id="ledg-inc-r" class="pos">₡0</td></tr>
+                        <tr><td>Taxes (C)</td><td id="ledg-inc-c" class="pos">₡0</td></tr>
+                        <tr><td>Taxes (I)</td><td id="ledg-inc-i" class="pos">₡0</td></tr>
+                        <tr class="total-row"><td>Total Income</td><td id="ledg-inc-tot" class="pos">₡0</td></tr>
+                        <tr><td>City Maintenance</td><td id="ledg-exp-m" class="neg">₡0</td></tr>
+                        <tr><td>Police Dept</td><td id="ledg-exp-p" class="neg">₡0</td></tr>
+                        <tr><td>Roads</td><td id="ledg-exp-r" class="neg">₡0</td></tr>
+                        <tr><td>Bond Interest</td><td id="ledg-exp-b" class="neg">₡0</td></tr>
+                        <tr class="total-row"><td>Total Expenses</td><td id="ledg-exp-tot" class="neg">₡0</td></tr>
+                        <tr class="net-row"><td>Net Cash Flow</td><td id="ledg-net">₡0</td></tr>
+                    </table>
+                </div>
+                <div class="ledger-section" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>Outstanding Bonds: <span id="bonds-display">0</span></div>
+                    <button class="tool-btn" id="btn-issue-bond" style="width:auto; margin:0;">Issue Bond (₡10k at 5%)</button>
+                </div>
+                <button class="tool-btn" id="btn-close-budget" style="margin-top:15px; border-left: 4px solid #3b82f6;">Close</button>
+            </div>
+        </div>
+
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <script type="module" src="/main.js"></script>
+</body>
+</html>
