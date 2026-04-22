@@ -10,7 +10,7 @@ export const TILES = {
     COM_1X2: 20, COM_2X1: 21, COM_1X3: 22, COM_3X1: 23,
     IND_1X2: 24, IND_2X1: 25, IND_1X3: 26, IND_3X1: 27,
     WATER: 28, ZONE_DENSE_RES: 29, ZONE_DENSE_COM: 30, ZONE_DENSE_IND: 31, WATER_PUMP: 32,
-    POLICE: 33, PARK: 34, SCHOOL: 35, HOSPITAL: 36
+    POLICE: 33, PARK: 34, SCHOOL: 35, HOSPITAL: 36, BRIDGE: 37
 };
 
 export const BuildingRegistry = {
@@ -18,6 +18,11 @@ export const BuildingRegistry = {
     'road': {
         name: 'Road', isTool: true, tileId: TILES.ROAD,
         width: 1, height: 1, cost: 10, maintenance: 0.5,
+        consumption: {}, output: {}
+    },
+    'bridge': {
+        name: 'Bridge', isTool: false, tileId: TILES.BRIDGE,
+        width: 1, height: 1, cost: 50, maintenance: 2.0,
         consumption: {}, output: {}
     },
     'zone-res': {
@@ -185,6 +190,12 @@ export const GlobalConfig = {
     bondAmount: 10000,
     bondInterestRate: 0.05,
     roadCost: 1, // maintenance per road tile
+    bridgeCost: 4, // maintenance per bridge tile
+
+    // Traffic System
+    roadCapacity: 100, // Traffic heat before congestion
+    trafficDesirabilityPenalty: 40, // Max penalty for heavy congestion
+    trafficDesirabilityRadius: 4,
 
     // Demand Formula Tuning
     demandBaseR: 50,

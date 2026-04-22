@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (!game.load()) {
-        // initial run setup
+        game.reset();
     }
     
     // Cheat Codes (SC2000 classics)
@@ -232,6 +232,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (game.funding.road < 50) msgs.push("Potholes everywhere! Mayor ignores infrastructure.");
         if (game.funding.police < 50) msgs.push("Police Chief warns of rising crime due to budget cuts!");
         if (game.bonds > 5) msgs.push("City debt skyrocketing! Financial crisis looming?");
+        
+        let hasTraffic = false;
+        for (let i = 0; i < game.trafficGrid.length; i++) if (game.trafficGrid[i] > 100) { hasTraffic = true; break; }
+        if (hasTraffic) msgs.push("Traffic gridlock! Commuters demand more roads.");
         
         let hasCrime = false;
         for (let i = 0; i < game.crimeGrid.length; i++) if (game.crimeGrid[i] > 50) { hasCrime = true; break; }

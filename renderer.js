@@ -141,6 +141,14 @@ export class Renderer {
                 if (tile === TILES.ROAD) {
                     this.ctx.fillStyle = '#4b5563'; 
                     this.ctx.fillRect(vx, vy, sz, sz);
+                } else if (tile === TILES.BRIDGE) {
+                    this.ctx.fillStyle = '#38bdf8'; // water under
+                    this.ctx.fillRect(vx, vy, sz, sz);
+                    this.ctx.fillStyle = '#4b5563'; // road surface
+                    this.ctx.fillRect(vx, vy + sz*0.2, sz, sz*0.6);
+                    this.ctx.fillStyle = '#9ca3af'; // rails
+                    this.ctx.fillRect(vx, vy + sz*0.1, sz, sz*0.1);
+                    this.ctx.fillRect(vx, vy + sz*0.8, sz, sz*0.1);
                 } else if (tile === TILES.POWER_COAL) {
                     this.ctx.fillStyle = '#1e293b'; 
                     this.ctx.fillRect(vx, vy, sz, sz);
@@ -225,6 +233,21 @@ export class Renderer {
                     } else {
                         // Show blue for safe areas under police protection
                         this.ctx.fillStyle = `rgba(59, 130, 246, 0.1)`; 
+                        this.ctx.fillRect(vx, vy, sz, sz);
+                    }
+                } else if (this.viewMode === 'traffic' && (tile === TILES.ROAD || tile === TILES.BRIDGE)) {
+                    const traffic = this.game.trafficGrid[i] || 0;
+                    if (traffic > 0) {
+                        // Max congestion color at 150 trips
+                        const ratio = Math.min(1, traffic / 150);
+                        // Green to Yellow to Red
+                        const r = ratio < 0.5 ? Math.floor(ratio * 2 * 255) : 255;
+                        const g = ratio > 0.5 ? Math.floor((1 - ratio) * 2 * 255) : 255;
+                        this.ctx.fillStyle = `rgba(${r}, ${g}, 0, 0.7)`;
+                        this.ctx.fillRect(vx, vy, sz, sz);
+                    } else {
+                        // Unused roads are light green/transparent
+                        this.ctx.fillStyle = `rgba(34, 197, 94, 0.2)`;
                         this.ctx.fillRect(vx, vy, sz, sz);
                     }
                 }

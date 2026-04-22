@@ -12,6 +12,7 @@ export class GameState {
         this.unwateredDays = new Array(GRID_SIZE * GRID_SIZE).fill(0);
         this.desirabilityGrid = new Array(GRID_SIZE * GRID_SIZE).fill(GlobalConfig.desirabilityBase);
         this.crimeGrid = new Array(GRID_SIZE * GRID_SIZE).fill(GlobalConfig.crimeBase);
+        this.trafficGrid = new Array(GRID_SIZE * GRID_SIZE).fill(0);
         
         this.money = GlobalConfig.startingMoney;
         this.population = 0;
@@ -142,8 +143,14 @@ export class GameState {
         
         switch(tool) {
             case 'road':
+                if (this.grid[gridY * GRID_SIZE + gridX] === TILES.WATER) {
+                    this.placeToolInternal('bridge', gridX, gridY);
+                } else {
+                    this.placeToolInternal(tool, gridX, gridY);
+                }
+                break;
             case 'power-coal':
-                this.placeTool(tool, gridX, gridY);
+                this.placeToolInternal(tool, gridX, gridY);
                 break;
             case 'water-pump':
                 let hasWater = false;
@@ -157,14 +164,61 @@ export class GameState {
                     }
                 }
                 if (hasWater) {
-                    this.placeTool(tool, gridX, gridY);
+                    this.placeToolInternal(tool, gridX, gridY);
                 }
                 break;
             default:
-                this.placeTool(tool, gridX, gridY);
+                this.placeToolInternal(tool, gridX, gridY);
                 break;
         }
     }
+
+    placeToolInternal(tool, x, y) {
+        if (!BuildingRegistry[tool]) return;
+        
+        const ent = BuildingRegistry[tool];
+        const isZoneTool = tool.startsWith('zone-');
+        
+        // Bounds check
+        if (x + ent.width > GRID_SIZE || y + ent.height > GRID_SIZE) return;
+
+        // Collision check
+        for (let dy = 0; dy < ent.height; dy++) {
+            for (let dx = 0; dx < ent.width; dx++) {
+                const targetTile = this.grid[(y + dy) * GRID_SIZE + (x + dx)];
+                if (targetTile !== TILES.EMPTY) {
+                    if (isZoneTool && [TILES.ZONE_RES, TILES.ZONE_COM, TILES.ZONE_IND].includes(targetTile)) {
+                        // Allow rewriting a light zone with a dense zone
+                    } else if (tool === 'bridge' && targetTile === TILES.WATER) {
+                        // Allow placing a bridge over water
+                    } else {
+                        return; // abort
+                    }
+                }
+            }
+        }
+
+        if (this.money >= ent.cost) {
+            this.money -= ent.cost;
+            for (let dy = 0; dy < ent.height; dy++) {
+                for (let dx = 0; dx < ent.width; dx++) {
+                    if (dx === 0 && dy === 0) {
+                        this.setTile(x, y, ent.tileId);
+                    } else {
+                        this.setTile(x + dx, y + dy, TILES.SLOT);
+                    }
+                }
+            }
+            this.recalculatePower();
+            this.recalculateWater();
+            this.recalculateCrime();
+            this.recalculateDesirability();
+            this.calculateEconomyProjections();
+            this.updateUI();
+        }
+    }
+
+
 
     updateUI() { window.dispatchEvent(new CustomEvent('update-ui', { detail: this })); }
 
@@ -209,7 +263,9 @@ export class GameState {
         }
         
         const actualPoliceCost = Math.floor(policeCost * (this.funding.police / 100));
-        const roadCost = Math.floor(roadCount * GlobalConfig.roadCost * (this.funding.road / 100));
+        let bridgeCount = 0;
+        for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === TILES.BRIDGE) bridgeCount++;
+        const roadCost = Math.floor((roadCount * GlobalConfig.roadCost + bridgeCount * GlobalConfig.bridgeCost) * (this.funding.road / 100));
         const bondInterest = Math.floor(this.bonds * GlobalConfig.bondInterestRate);
 
         const totalMaintenance = baseMaintenance + actualPoliceCost + roadCost + bondInterest;
@@ -237,7 +293,8 @@ export class GameState {
         localStorage.setItem('simplecity_save', JSON.stringify({
             grid: this.grid, money: this.money, population: this.population,
             demand: this.demand, taxRates: this.taxRates, funding: this.funding,
-            bonds: this.bonds, daysPassed: this.daysPassed
+            bonds: this.bonds, daysPassed: this.daysPassed,
+            trafficGrid: this.trafficGrid
         }));
     }
 
@@ -254,6 +311,7 @@ export class GameState {
                 this.funding = parsed.funding || this.funding;
                 this.bonds = parsed.bonds || this.bonds;
                 this.daysPassed = parsed.daysPassed || 0;
+                this.trafficGrid = parsed.trafficGrid || new Array(GRID_SIZE * GRID_SIZE).fill(0);
                 this.recalculatePower();
                 this.recalculateWater();
                 this.recalculateCrime();
@@ -279,6 +337,7 @@ export class GameState {
         this.funding = { police: 100, road: 100 };
         this.bonds = 0;
         this.daysPassed = 0;
+        this.trafficGrid.fill(0);
         this.generateTerrain();
         this.recalculatePower();
         this.recalculateWater();
@@ -302,48 +361,6 @@ export class GameState {
         }
     }
 
-    placeTool(tool, x, y) {
-        if (!BuildingRegistry[tool]) return;
-        
-        const ent = BuildingRegistry[tool];
-        const isZoneTool = tool.startsWith('zone-');
-        
-        // Bounds check
-        if (x + ent.width > GRID_SIZE || y + ent.height > GRID_SIZE) return;
-
-        // Collision check
-        for (let dy = 0; dy < ent.height; dy++) {
-            for (let dx = 0; dx < ent.width; dx++) {
-                const targetTile = this.grid[(y + dy) * GRID_SIZE + (x + dx)];
-                if (targetTile !== TILES.EMPTY) {
-                    if (isZoneTool && [TILES.ZONE_RES, TILES.ZONE_COM, TILES.ZONE_IND].includes(targetTile)) {
-                        // Allow rewriting a light zone with a dense zone
-                    } else {
-                        return; // abort
-                    }
-                }
-            }
-        }
-
-        if (this.money >= ent.cost) {
-            this.money -= ent.cost;
-            for (let dy = 0; dy < ent.height; dy++) {
-                for (let dx = 0; dx < ent.width; dx++) {
-                    if (dx === 0 && dy === 0) {
-                        this.setTile(x, y, ent.tileId);
-                    } else {
-                        this.setTile(x + dx, y + dy, TILES.SLOT);
-                    }
-                }
-            }
-            this.recalculatePower();
-            this.recalculateWater();
-            this.recalculateCrime();
-            this.recalculateDesirability();
-            this.calculateEconomyProjections();
-            this.updateUI();
-        }
-    }
 
     recalculatePower() {
         this.powerGrid.fill(false);
@@ -595,6 +612,71 @@ export class GameState {
         }
     }
 
+    calculateTraffic() {
+        this.trafficGrid.fill(0);
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        
+        // Find all job tiles (Commercial/Industrial)
+        const jobTiles = new Set();
+        for (let i = 0; i < this.grid.length; i++) {
+            if (this.jobsMap[this.grid[i]] > 0 && this.powerGrid[i]) {
+                jobTiles.add(i);
+            }
+        }
+
+        if (jobTiles.size === 0) return; // Nowhere to go
+
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const idx = y * GRID_SIZE + x;
+                const tile = this.grid[idx];
+                const pop = this.populationMap[tile];
+                
+                if (pop > 0 && this.powerGrid[idx]) {
+                    // Try to find path to nearest job
+                    let queue = [{x, y, path: []}];
+                    let visited = new Set([idx]);
+                    let found = false;
+
+                    // BFS max depth to prevent lag
+                    let iterations = 0;
+                    while(queue.length > 0 && iterations < 500) {
+                        iterations++;
+                        const curr = queue.shift();
+                        const cIdx = curr.y * GRID_SIZE + curr.x;
+                        
+                        if (jobTiles.has(cIdx)) {
+                            // Apply traffic to path
+                            for (const pIdx of curr.path) {
+                                this.trafficGrid[pIdx] += pop;
+                            }
+                            found = true;
+                            break;
+                        }
+
+                        for (const [dx, dy] of dirs) {
+                            const nx = curr.x + dx, ny = curr.y + dy;
+                            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                                const nIdx = ny * GRID_SIZE + nx;
+                                if (!visited.has(nIdx)) {
+                                    const nTile = this.grid[nIdx];
+                                    if (nTile === TILES.ROAD || nTile === TILES.BRIDGE || jobTiles.has(nIdx) || nTile === TILES.SLOT) {
+                                        visited.add(nIdx);
+                                        const newPath = [...curr.path];
+                                        if (nTile === TILES.ROAD || nTile === TILES.BRIDGE) {
+                                            newPath.push(nIdx);
+                                        }
+                                        queue.push({x: nx, y: ny, path: newPath});
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     recalculateDesirability() {
         this.desirabilityGrid.fill(GlobalConfig.desirabilityBase);
         
@@ -643,9 +725,17 @@ export class GameState {
             }
         }
         
-        // Apply crime penalty and clamp
+        // Apply crime and traffic penalties, then clamp
         for (let i = 0; i < this.desirabilityGrid.length; i++) {
             this.desirabilityGrid[i] -= this.crimeGrid[i];
+            
+            // Apply traffic penalty
+            let localTraffic = this.trafficGrid[i] || 0;
+            if (localTraffic > GlobalConfig.roadCapacity) {
+                const penaltyRatio = Math.min(1, (localTraffic - GlobalConfig.roadCapacity) / GlobalConfig.roadCapacity);
+                this.desirabilityGrid[i] -= GlobalConfig.trafficDesirabilityPenalty * penaltyRatio;
+            }
+
             this.desirabilityGrid[i] = Math.max(0, Math.min(100, this.desirabilityGrid[i]));
         }
     }
@@ -703,6 +793,10 @@ export class GameState {
         if (this.daysPassed % GlobalConfig.daysPerTaxCycle === 0) {
             this.collectTaxes();
             this.save();
+        }
+
+        if (this.daysPassed % 10 === 0) {
+            this.calculateTraffic();
         }
 
         this.calculateDemand();
