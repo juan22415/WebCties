@@ -141,6 +141,76 @@ export class Renderer {
                 if (tile === TILES.ROAD) {
                     this.ctx.fillStyle = '#4b5563'; 
                     this.ctx.fillRect(vx, vy, sz, sz);
+                } else if (tile === TILES.RAIL_CROSSING) {
+                    // Road surface
+                    this.ctx.fillStyle = '#4b5563';
+                    this.ctx.fillRect(vx, vy, sz, sz);
+                    // Rail crossing marks (X pattern)
+                    this.ctx.fillStyle = '#a8a29e';
+                    this.ctx.fillRect(vx + sz*0.1, vy + sz*0.35, sz*0.8, sz*0.08);
+                    this.ctx.fillRect(vx + sz*0.1, vy + sz*0.57, sz*0.8, sz*0.08);
+                    // Warning stripes
+                    this.ctx.fillStyle = '#eab308';
+                    this.ctx.fillRect(vx + sz*0.0, vy + sz*0.0, sz*0.1, sz);
+                    this.ctx.fillRect(vx + sz*0.9, vy + sz*0.0, sz*0.1, sz);
+                } else if (tile === TILES.HIGHWAY) {
+                    this.ctx.fillStyle = '#1f2937'; // Dark asphalt
+                    this.ctx.fillRect(vx, vy, sz, sz);
+                } else if (tile === TILES.RAIL) {
+                    // Detect orientation from neighbors
+                    const hasLeft = x > 0 && (this.game.grid[(y) * GRID_SIZE + (x-1)] === TILES.RAIL || this.game.grid[(y) * GRID_SIZE + (x-1)] === TILES.TRAIN_STATION || this.game.grid[(y) * GRID_SIZE + (x-1)] === TILES.SLOT);
+                    const hasRight = x < GRID_SIZE-1 && (this.game.grid[(y) * GRID_SIZE + (x+1)] === TILES.RAIL || this.game.grid[(y) * GRID_SIZE + (x+1)] === TILES.TRAIN_STATION || this.game.grid[(y) * GRID_SIZE + (x+1)] === TILES.SLOT);
+                    const hasUp = y > 0 && (this.game.grid[(y-1) * GRID_SIZE + x] === TILES.RAIL || this.game.grid[(y-1) * GRID_SIZE + x] === TILES.TRAIN_STATION || this.game.grid[(y-1) * GRID_SIZE + x] === TILES.SLOT);
+                    const hasDown = y < GRID_SIZE-1 && (this.game.grid[(y+1) * GRID_SIZE + x] === TILES.RAIL || this.game.grid[(y+1) * GRID_SIZE + x] === TILES.TRAIN_STATION || this.game.grid[(y+1) * GRID_SIZE + x] === TILES.SLOT);
+                    const isHoriz = hasLeft || hasRight;
+                    const isVert = hasUp || hasDown;
+
+                    if (isHoriz && !isVert) {
+                        // Horizontal rail
+                        this.ctx.fillStyle = '#78716c';
+                        this.ctx.fillRect(vx, vy + sz*0.2, sz, sz*0.6);
+                        this.ctx.fillStyle = '#57534e';
+                        for (let t = 0; t < 4; t++) {
+                            this.ctx.fillRect(vx + sz*(t*0.25 + 0.05), vy + sz*0.1, sz*0.08, sz*0.8);
+                        }
+                        this.ctx.fillStyle = '#a8a29e';
+                        this.ctx.fillRect(vx, vy + sz*0.25, sz, sz*0.08);
+                        this.ctx.fillRect(vx, vy + sz*0.67, sz, sz*0.08);
+                    } else if (isVert && !isHoriz) {
+                        // Vertical rail
+                        this.ctx.fillStyle = '#78716c';
+                        this.ctx.fillRect(vx + sz*0.2, vy, sz*0.6, sz);
+                        this.ctx.fillStyle = '#57534e';
+                        for (let t = 0; t < 4; t++) {
+                            this.ctx.fillRect(vx + sz*0.1, vy + sz*(t*0.25 + 0.05), sz*0.8, sz*0.08);
+                        }
+                        this.ctx.fillStyle = '#a8a29e';
+                        this.ctx.fillRect(vx + sz*0.25, vy, sz*0.08, sz);
+                        this.ctx.fillRect(vx + sz*0.67, vy, sz*0.08, sz);
+                    } else {
+                        // Intersection or isolated — draw cross
+                        this.ctx.fillStyle = '#78716c';
+                        this.ctx.fillRect(vx + sz*0.2, vy, sz*0.6, sz);
+                        this.ctx.fillRect(vx, vy + sz*0.2, sz, sz*0.6);
+                        this.ctx.fillStyle = '#a8a29e';
+                        this.ctx.fillRect(vx + sz*0.25, vy, sz*0.08, sz);
+                        this.ctx.fillRect(vx + sz*0.67, vy, sz*0.08, sz);
+                        this.ctx.fillRect(vx, vy + sz*0.25, sz, sz*0.08);
+                        this.ctx.fillRect(vx, vy + sz*0.67, sz, sz*0.08);
+                    }
+                } else if (tile === TILES.TRAIN_STATION) {
+                    this.ctx.fillStyle = '#6d28d9'; // Purple station
+                    this.ctx.fillRect(vx, vy, sz, sz);
+                    // Only draw details on the anchor tile (top-left of the 2x2)
+                    const isAnchor = (x === 0 || this.game.grid[y * GRID_SIZE + (x-1)] !== TILES.TRAIN_STATION) &&
+                                     (y === 0 || this.game.grid[(y-1) * GRID_SIZE + x] !== TILES.TRAIN_STATION);
+                    if (isAnchor) {
+                        this.ctx.fillStyle = '#c4b5fd'; // Lighter roof
+                        this.ctx.fillRect(vx + sz*0.1, vy + sz*0.1, sz*1.8, sz*1.8);
+                        this.ctx.fillStyle = '#ffffff';
+                        this.ctx.font = `${sz*0.7}px monospace`;
+                        this.ctx.fillText('🚂', vx + sz*0.4, vy + sz*1.2);
+                    }
                 } else if (tile === TILES.BRIDGE) {
                     this.ctx.fillStyle = '#38bdf8'; // water under
                     this.ctx.fillRect(vx, vy, sz, sz);
@@ -235,7 +305,14 @@ export class Renderer {
                         this.ctx.fillStyle = `rgba(59, 130, 246, 0.1)`; 
                         this.ctx.fillRect(vx, vy, sz, sz);
                     }
-                } else if (this.viewMode === 'traffic' && (tile === TILES.ROAD || tile === TILES.BRIDGE)) {
+                } else if (this.viewMode === 'pollution') {
+                    const smog = this.game.pollutionGrid[i];
+                    if (smog > 0) {
+                        const alpha = Math.min(0.9, smog / 100);
+                        this.ctx.fillStyle = `rgba(161, 98, 7, ${alpha})`; // Yellow/Brown smog
+                        this.ctx.fillRect(vx, vy, sz, sz);
+                    }
+                } else if (this.viewMode === 'traffic' && (tile === TILES.ROAD || tile === TILES.BRIDGE || tile === TILES.HIGHWAY || tile === TILES.RAIL_CROSSING)) {
                     const traffic = this.game.trafficGrid[i] || 0;
                     if (traffic > 0) {
                         // Max congestion color at 150 trips
@@ -258,10 +335,10 @@ export class Renderer {
         for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
                 const tile = this.game.getTile(x, y);
-                if (tile === TILES.EMPTY || tile === TILES.ROAD || tile === TILES.SLOT) continue;
+                if (tile === TILES.EMPTY || tile === TILES.ROAD || tile === TILES.SLOT || tile === TILES.HIGHWAY || tile === TILES.RAIL || tile === TILES.BRIDGE || tile === TILES.TRAIN_STATION || tile === TILES.RAIL_CROSSING) continue;
 
                 const ent = this.game.reverseRegistryMap[tile];
-                if (ent && (!ent.isTool || [TILES.POWER_COAL, TILES.POLICE, TILES.PARK, TILES.SCHOOL, TILES.HOSPITAL].includes(tile))) {
+                if (ent && (!ent.isTool || [TILES.POWER_COAL, TILES.POLICE, TILES.PARK, TILES.SCHOOL, TILES.HOSPITAL, TILES.TRAIN_STATION].includes(tile))) {
                      const isPowered = this.game.powerGrid[y * GRID_SIZE + x];
                      const s = this.tileSize;
                      const renderX = x * s, renderY = y * s;

@@ -12,6 +12,7 @@ export class GameState {
         this.unwateredDays = new Array(GRID_SIZE * GRID_SIZE).fill(0);
         this.desirabilityGrid = new Array(GRID_SIZE * GRID_SIZE).fill(GlobalConfig.desirabilityBase);
         this.crimeGrid = new Array(GRID_SIZE * GRID_SIZE).fill(GlobalConfig.crimeBase);
+        this.pollutionGrid = new Array(GRID_SIZE * GRID_SIZE).fill(GlobalConfig.pollutionBase);
         this.trafficGrid = new Array(GRID_SIZE * GRID_SIZE).fill(0);
         
         this.money = GlobalConfig.startingMoney;
@@ -164,6 +165,7 @@ export class GameState {
                 const ent = structure.ent;
                 let revertTile = ent.zoneType ? ent.zoneType : TILES.EMPTY;
                 if (ent.tileId === TILES.BRIDGE) revertTile = TILES.WATER;
+                if (ent.tileId === TILES.RAIL_CROSSING) revertTile = TILES.RAIL;
                 
                 for (let dy = 0; dy < ent.height; dy++) {
                     for (let dx = 0; dx < ent.width; dx++) {
@@ -197,8 +199,10 @@ export class GameState {
                         // Allow rewriting a light zone with a dense zone
                     } else if (tool === 'bridge' && targetTile === TILES.WATER) {
                         // Allow placing a bridge over water
-                    } else if (tool === 'road' && targetTile !== TILES.WATER && targetTile !== TILES.ROAD && targetTile !== TILES.BRIDGE) {
-                        // Allow road over anything except water/road. Auto-bulldoze it!
+                    } else if ((tool === 'road' || tool === 'highway') && targetTile === TILES.RAIL) {
+                        // Road over rail = railroad crossing (no bulldoze needed)
+                    } else if ((tool === 'road' || tool === 'highway') && targetTile !== TILES.WATER && targetTile !== TILES.ROAD && targetTile !== TILES.BRIDGE && targetTile !== TILES.HIGHWAY && targetTile !== TILES.RAIL_CROSSING) {
+                        // Allow road/highway over anything except water/road/highway/crossing. Auto-bulldoze it!
                         tilesToBulldoze.push({bx: x + dx, by: y + dy});
                     } else {
                         return; // abort
@@ -220,8 +224,16 @@ export class GameState {
             this.money -= ent.cost;
             for (let dy = 0; dy < ent.height; dy++) {
                 for (let dx = 0; dx < ent.width; dx++) {
-                    if (dx === 0 && dy === 0) {
-                        this.setTile(x, y, ent.tileId);
+                    if (ent.fillAll) {
+                        this.setTile(x + dx, y + dy, ent.tileId);
+                    } else if (dx === 0 && dy === 0) {
+                        // Check if we're placing road/highway over rail → make crossing
+                        const existingTile = this.grid[(y + dy) * GRID_SIZE + (x + dx)];
+                        if ((tool === 'road' || tool === 'highway') && existingTile === TILES.RAIL) {
+                            this.setTile(x, y, TILES.RAIL_CROSSING);
+                        } else {
+                            this.setTile(x, y, ent.tileId);
+                        }
                     } else {
                         this.setTile(x + dx, y + dy, TILES.SLOT);
                     }
@@ -251,6 +263,9 @@ export class GameState {
             const tile = this.grid[i];
             
             if (tile === TILES.ROAD) { roadCount++; continue; }
+            if (tile === TILES.HIGHWAY) { roadCount++; continue; }
+            if (tile === TILES.RAIL) { roadCount++; continue; }
+            if (tile === TILES.RAIL_CROSSING) { roadCount++; continue; }
             if (tile === TILES.EMPTY) continue;
             
             const ent = this.reverseRegistryMap[tile];
@@ -428,7 +443,7 @@ export class GameState {
                                 const nIdx = ny * GRID_SIZE + nx;
                                 const nTile = this.grid[nIdx];
                                 
-                                const isConductor = (nTile === TILES.ROAD || this.powerOutputMap[nTile] > 0 || nTile === TILES.SLOT);
+                                const isConductor = (nTile === TILES.ROAD || nTile === TILES.HIGHWAY || nTile === TILES.RAIL_CROSSING || this.powerOutputMap[nTile] > 0 || nTile === TILES.SLOT);
                                 
                                 if (isConductor) {
                                     if (!visitedConductors[nIdx]) {
@@ -520,7 +535,7 @@ export class GameState {
                                 const nIdx = ny * GRID_SIZE + nx;
                                 const nTile = this.grid[nIdx];
                                 
-                                const isPipe = (nTile === TILES.ROAD || this.waterOutputMap[nTile] > 0 || nTile === TILES.SLOT);
+                                const isPipe = (nTile === TILES.ROAD || nTile === TILES.HIGHWAY || nTile === TILES.RAIL_CROSSING || this.waterOutputMap[nTile] > 0 || nTile === TILES.SLOT);
                                 
                                 if (isPipe) {
                                     if (!visitedPipes[nIdx]) {
@@ -630,6 +645,51 @@ export class GameState {
         }
     }
 
+    recalculatePollution() {
+        const newPollution = new Array(GRID_SIZE * GRID_SIZE).fill(0);
+        
+        // 1. Generation
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const idx = y * GRID_SIZE + x;
+                const tile = this.grid[idx];
+                
+                let gen = 0;
+                if (tile === TILES.POWER_COAL) {
+                    gen = 1000; // Coal plants are extremely dirty
+                } else if (this.reverseRegistryMap[tile] && this.reverseRegistryMap[tile].zoneType === TILES.ZONE_IND) {
+                    gen = (this.jobsMap[tile] || 0) * GlobalConfig.pollutionIndustryGen;
+                }
+                gen += (this.trafficGrid[idx] || 0) * GlobalConfig.pollutionTrafficGen;
+                
+                // Keep old pollution (with decay)
+                newPollution[idx] = Math.max(0, this.pollutionGrid[idx] - GlobalConfig.pollutionDecay) + gen;
+            }
+        }
+
+        // 2. Diffusion (Spread)
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const idx = y * GRID_SIZE + x;
+                if (newPollution[idx] > 0) {
+                    const toSpread = newPollution[idx] * GlobalConfig.pollutionSpread;
+                    const spreadPerDir = toSpread / 4;
+                    this.pollutionGrid[idx] = newPollution[idx] - toSpread;
+                    
+                    for (const [dx, dy] of dirs) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                            this.pollutionGrid[ny * GRID_SIZE + nx] += spreadPerDir;
+                        }
+                    }
+                } else {
+                    this.pollutionGrid[idx] = 0;
+                }
+            }
+        }
+    }
+
     calculateTraffic() {
         this.trafficGrid.fill(0);
         const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
@@ -644,6 +704,87 @@ export class GameState {
 
         if (jobTiles.size === 0) return; // Nowhere to go
 
+        // Pre-compute train station network for mass transit
+        // Find all powered train stations and which job/residential tiles they serve
+        const stationZones = []; // { x, y, nearbyPop: [{idx, pop}], nearbyJobs: [{idx}] }
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (this.grid[y * GRID_SIZE + x] === TILES.TRAIN_STATION && this.powerGrid[y * GRID_SIZE + x]) {
+                    const station = { x, y, idx: y * GRID_SIZE + x };
+                    stationZones.push(station);
+                }
+            }
+        }
+
+        // Build rail connectivity graph between stations (BFS via RAIL tiles)
+        const stationConnections = new Map(); // stationIdx -> Set of connected stationIdxs
+        for (const station of stationZones) {
+            const connectedStations = new Set();
+            const visited = new Set();
+            const queue = [];
+            // Seed BFS from ALL tiles of the 2x2 station footprint
+            for (let dy = 0; dy < 2; dy++) {
+                for (let dx = 0; dx < 2; dx++) {
+                    const sx = station.x + dx, sy = station.y + dy;
+                    if (sx < GRID_SIZE && sy < GRID_SIZE) {
+                        visited.add(sy * GRID_SIZE + sx);
+                        queue.push({x: sx, y: sy});
+                    }
+                }
+            }
+            while (queue.length > 0) {
+                const curr = queue.shift();
+                for (const [dx, dy] of dirs) {
+                    const nx = curr.x + dx, ny = curr.y + dy;
+                    if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                        const nIdx = ny * GRID_SIZE + nx;
+                        if (!visited.has(nIdx)) {
+                            visited.add(nIdx);
+                            const nTile = this.grid[nIdx];
+                            if (nTile === TILES.RAIL || nTile === TILES.RAIL_CROSSING) {
+                                queue.push({x: nx, y: ny});
+                            } else if (nTile === TILES.TRAIN_STATION) {
+                                // Found a connected station anchor
+                                connectedStations.add(nIdx);
+                                // Mark its full footprint visited
+                                for (let ady = 0; ady < 2; ady++) {
+                                    for (let adx = 0; adx < 2; adx++) {
+                                        visited.add((ny + ady) * GRID_SIZE + (nx + adx));
+                                    }
+                                }
+                            } else if (nTile === TILES.SLOT) {
+                                // Could be part of a train station — check
+                                const anchor = this.findAnchor(nx, ny);
+                                if (anchor && anchor.ent.tileId === TILES.TRAIN_STATION) {
+                                    connectedStations.add(anchor.y * GRID_SIZE + anchor.x);
+                                    for (let ady = 0; ady < 2; ady++) {
+                                        for (let adx = 0; adx < 2; adx++) {
+                                            visited.add((anchor.y + ady) * GRID_SIZE + (anchor.x + adx));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            stationConnections.set(station.idx, connectedStations);
+        }
+
+        // Helper: find nearest station within walking distance (6 tiles) of a given tile
+        const findNearStation = (tx, ty, maxDist) => {
+            for (const s of stationZones) {
+                // Check distance to any of the 2x2 tiles of the station
+                for (let dy = 0; dy < 2; dy++) {
+                    for (let dx = 0; dx < 2; dx++) {
+                        const dist = Math.abs(tx - (s.x + dx)) + Math.abs(ty - (s.y + dy));
+                        if (dist <= maxDist) return s;
+                    }
+                }
+            }
+            return null;
+        };
+
         for (let y = 0; y < GRID_SIZE; y++) {
             for (let x = 0; x < GRID_SIZE; x++) {
                 const idx = y * GRID_SIZE + x;
@@ -651,12 +792,40 @@ export class GameState {
                 const pop = this.populationMap[tile];
                 
                 if (pop > 0 && this.powerGrid[idx]) {
-                    // Try to find path to nearest job
+                    // Check if this commuter can use mass transit
+                    let usedTransit = false;
+                    const homeStation = findNearStation(x, y, 6);
+                    
+                    if (homeStation && stationConnections.has(homeStation.idx)) {
+                        const connectedStationIdxs = stationConnections.get(homeStation.idx);
+                        // Check if any connected station is near a job tile
+                        for (const connStIdx of connectedStationIdxs) {
+                            const sy = Math.floor(connStIdx / GRID_SIZE);
+                            const sx = connStIdx % GRID_SIZE;
+                            // Check tiles around this station for jobs
+                            for (let cdy = -6; cdy <= 7; cdy++) {
+                                for (let cdx = -6; cdx <= 7; cdx++) {
+                                    const jx = sx + cdx, jy = sy + cdy;
+                                    if (jx >= 0 && jx < GRID_SIZE && jy >= 0 && jy < GRID_SIZE) {
+                                        if (jobTiles.has(jy * GRID_SIZE + jx)) {
+                                            usedTransit = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (usedTransit) break;
+                            }
+                            if (usedTransit) break;
+                        }
+                    }
+
+                    if (usedTransit) continue; // Zero road traffic for this commuter!
+
+                    // Standard BFS road pathfinding
                     let queue = [{x, y, path: []}];
                     let visited = new Set([idx]);
                     let found = false;
 
-                    // BFS max depth to prevent lag
                     let iterations = 0;
                     while(queue.length > 0 && iterations < 500) {
                         iterations++;
@@ -664,7 +833,6 @@ export class GameState {
                         const cIdx = curr.y * GRID_SIZE + curr.x;
                         
                         if (jobTiles.has(cIdx)) {
-                            // Apply traffic to path
                             for (const pIdx of curr.path) {
                                 this.trafficGrid[pIdx] += pop;
                             }
@@ -678,10 +846,10 @@ export class GameState {
                                 const nIdx = ny * GRID_SIZE + nx;
                                 if (!visited.has(nIdx)) {
                                     const nTile = this.grid[nIdx];
-                                    if (nTile === TILES.ROAD || nTile === TILES.BRIDGE || jobTiles.has(nIdx) || nTile === TILES.SLOT) {
+                                    if (nTile === TILES.ROAD || nTile === TILES.BRIDGE || nTile === TILES.HIGHWAY || nTile === TILES.RAIL_CROSSING || jobTiles.has(nIdx) || nTile === TILES.SLOT) {
                                         visited.add(nIdx);
                                         const newPath = [...curr.path];
-                                        if (nTile === TILES.ROAD || nTile === TILES.BRIDGE) {
+                                        if (nTile === TILES.ROAD || nTile === TILES.BRIDGE || nTile === TILES.HIGHWAY || nTile === TILES.RAIL_CROSSING) {
                                             newPath.push(nIdx);
                                         }
                                         queue.push({x: nx, y: ny, path: newPath});
@@ -707,14 +875,10 @@ export class GameState {
                 if (tile === TILES.WATER) {
                     val = GlobalConfig.desirabilityWaterBoost;
                     radius = GlobalConfig.desirabilityWaterRadius;
-                } else if (tile === TILES.POWER_COAL) {
-                    val = GlobalConfig.desirabilityPollutionPenalty;
-                    radius = GlobalConfig.desirabilityPollutionRadius;
                 } else if ([TILES.RES_3X3, TILES.RES_2X2, TILES.COM_3X3, TILES.COM_2X2, TILES.IND_3X3, TILES.IND_2X2].includes(tile)) {
                     val = GlobalConfig.desirabilityDenseBoost;
                     radius = GlobalConfig.desirabilityDenseRadius;
                 } else if (tile === TILES.PARK) {
-                    val = GlobalConfig.desirabilityDenseBoost; // Re-using variables if needed, wait no:
                     val = GlobalConfig.parkBoost;
                     radius = GlobalConfig.parkRadius;
                 } else if (tile === TILES.SCHOOL) {
@@ -743,14 +907,21 @@ export class GameState {
             }
         }
         
-        // Apply crime and traffic penalties, then clamp
+        // Apply penalties: Crime, Traffic, Pollution
         for (let i = 0; i < this.desirabilityGrid.length; i++) {
+            // Crime: 1 point of crime = -1 desirability
             this.desirabilityGrid[i] -= this.crimeGrid[i];
             
-            // Apply traffic penalty
+            // Pollution
+            if (this.pollutionGrid[i] > 0) {
+                this.desirabilityGrid[i] -= this.pollutionGrid[i] * GlobalConfig.pollutionDesirabilityPenalty;
+            }
+            
+            // Apply traffic penalty (highways have higher capacity)
             let localTraffic = this.trafficGrid[i] || 0;
-            if (localTraffic > GlobalConfig.roadCapacity) {
-                const penaltyRatio = Math.min(1, (localTraffic - GlobalConfig.roadCapacity) / GlobalConfig.roadCapacity);
+            const capacity = (this.grid[i] === TILES.HIGHWAY) ? GlobalConfig.highwayCapacity : GlobalConfig.roadCapacity;
+            if (localTraffic > capacity) {
+                const penaltyRatio = Math.min(1, (localTraffic - capacity) / capacity);
                 this.desirabilityGrid[i] -= GlobalConfig.trafficDesirabilityPenalty * penaltyRatio;
             }
 
@@ -765,7 +936,7 @@ export class GameState {
                 for (const [vx, vy] of dirs) {
                     const nx = x + dx + vx, ny = y + dy + vy;
                     if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-                        if (this.grid[ny * GRID_SIZE + nx] === TILES.ROAD) return true;
+                        if (this.grid[ny * GRID_SIZE + nx] === TILES.ROAD || this.grid[ny * GRID_SIZE + nx] === TILES.HIGHWAY || this.grid[ny * GRID_SIZE + nx] === TILES.RAIL_CROSSING) return true;
                     }
                 }
             }
@@ -815,6 +986,9 @@ export class GameState {
 
         if (this.daysPassed % 10 === 0) {
             this.calculateTraffic();
+            this.recalculatePollution();
+            this.recalculateCrime();
+            this.recalculateDesirability();
         }
 
         this.calculateDemand();

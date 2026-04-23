@@ -13,7 +13,8 @@ export const TILES = {
     COM_LOW_2X2: 40, COM_LOW_3X3: 41,
     IND_LOW_2X2: 42, IND_LOW_3X3: 43,
     WATER: 28, ZONE_DENSE_RES: 29, ZONE_DENSE_COM: 30, ZONE_DENSE_IND: 31, WATER_PUMP: 32,
-    POLICE: 33, PARK: 34, SCHOOL: 35, HOSPITAL: 36, BRIDGE: 37
+    POLICE: 33, PARK: 34, SCHOOL: 35, HOSPITAL: 36, BRIDGE: 37,
+    HIGHWAY: 44, RAIL: 45, TRAIN_STATION: 46, RAIL_CROSSING: 47
 };
 
 export const BuildingRegistry = {
@@ -23,9 +24,29 @@ export const BuildingRegistry = {
         width: 1, height: 1, cost: 10, maintenance: 0.5,
         consumption: {}, output: {}
     },
+    'highway': {
+        name: 'Highway', isTool: true, tileId: TILES.HIGHWAY,
+        width: 2, height: 2, cost: 200, maintenance: 8.0,
+        consumption: {}, output: {}, fillAll: true
+    },
+    'rail': {
+        name: 'Rail', isTool: true, tileId: TILES.RAIL,
+        width: 1, height: 1, cost: 20, maintenance: 1.0,
+        consumption: {}, output: {}
+    },
+    'train-station': {
+        name: 'Train Station', isTool: true, tileId: TILES.TRAIN_STATION,
+        width: 2, height: 2, cost: 250, maintenance: 25.0,
+        consumption: { power: 1 }, output: {}, fillAll: true
+    },
     'bridge': {
         name: 'Bridge', isTool: false, tileId: TILES.BRIDGE,
         width: 1, height: 1, cost: 50, maintenance: 2.0,
+        consumption: {}, output: {}
+    },
+    'rail-crossing': {
+        name: 'Rail Crossing', isTool: false, tileId: TILES.RAIL_CROSSING,
+        width: 1, height: 1, cost: 0, maintenance: 1.0,
         consumption: {}, output: {}
     },
     'zone-res': {
@@ -221,6 +242,7 @@ export const GlobalConfig = {
 
     // Traffic System
     roadCapacity: 100, // Traffic heat before congestion
+    highwayCapacity: 300, // Traffic heat before congestion for highways
     trafficDesirabilityPenalty: 40, // Max penalty for heavy congestion
     trafficDesirabilityRadius: 4,
 
@@ -249,6 +271,14 @@ export const GlobalConfig = {
     desirabilityPollutionRadius: 12,
     desirabilityDenseBoost: 10,
     desirabilityDenseRadius: 6,
+
+    // Pollution
+    pollutionBase: 0,
+    pollutionDecay: 2, // How much pollution decays per tick
+    pollutionSpread: 0.5, // Percentage of pollution that diffuses to adjacent tiles
+    pollutionIndustryGen: 10, // Pollution generated per industry population/job per tick
+    pollutionTrafficGen: 5, // Pollution generated per traffic unit per tick
+    pollutionDesirabilityPenalty: 2, // 1 point of pollution = -2 desirability
 
     // Crime & Civics
     crimeBase: 0,

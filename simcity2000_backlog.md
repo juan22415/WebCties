@@ -61,17 +61,17 @@ This document organizes the core features of SimCity 2000 into a structured back
 
 ### MVP 3: Desirability, Services, & Land Value
 *Focus: Giving the simulation a soul (happiness, safety, and health).*
-- [ ] **Pollution Map:** Industry and traffic generate pollution; pollution decays over time/distance.
-- [ ] **Crime Map & Police:** Proximity-based crime generation; Police Station radius mitigates it.
+- [x] **Pollution Map:** Industry and traffic generate pollution; pollution decays over time/distance.
+- [x] **Crime Map & Police:** Proximity-based crime generation; Police Station radius mitigates it.
 - [ ] **Fire & Fire Stations:** Random fire outbreaks (based on power/density); Fire Station radius suppresses fires.
-- [ ] **Land Value Calculation:** A matrix combining pollution, crime, terrain features, and center-of-mass proximity.
-- [ ] **Civic Buildings Tool:** Place Parks, Schools, and Hospitals to manually boost land value.
+- [x] **Land Value Calculation:** A matrix combining pollution, crime, terrain features, and center-of-mass proximity.
+- [x] **Civic Buildings Tool:** Place Parks, Schools, and Hospitals to manually boost land value.
 
 ### MVP 4: Transportation & Advanced Networks
 *Focus: Movement around the city.*
-- [ ] **Traffic Simulation:** Macro-statistical traffic heat map (congestion based on zone density, trip calculations, and road capacity, not individual agents).
-- [ ] **Highways & Interchanges:** Higher capacity traffic routes that reduce statistical congestion.
-- [ ] **Mass Transit:** Rail and train stations to reduce localized road traffic.
+- [x] **Traffic Simulation:** Macro-statistical traffic heat map (congestion based on zone density, trip calculations, and road capacity, not individual agents).
+- [x] **Highways & Interchanges:** Higher capacity traffic routes that reduce statistical congestion.
+- [x] **Mass Transit:** Rail and train stations to reduce localized road traffic.
 
 ### MVP 5: Economy, Budget, and Government
 *Focus: The meta-game and UI overlays.*
