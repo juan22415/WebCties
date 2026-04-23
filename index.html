@@ -22,9 +22,10 @@
                 <div class="stat-box"><span class="stat-label" style="color: #06b6d4;">Water</span><span id="water-stats-display" style="font-size:0.9rem; font-weight:600;">0/0</span></div>
             </div>
             <div class="time-controls" style="display: flex; gap: 8px; margin-left: auto;">
-                <button class="tool-btn time-btn" data-speed="0" style="padding: 6px 12px; font-size: 0.85rem;">Pause</button>
-                <button class="tool-btn time-btn active" data-speed="1" style="padding: 6px 12px; font-size: 0.85rem;">Play</button>
-                <button class="tool-btn time-btn" data-speed="3" style="padding: 6px 12px; font-size: 0.85rem;">FFWD</button>
+                <button class="tool-btn time-btn" data-speed="0" style="padding: 6px 12px; font-size: 0.85rem;" title="Pause (Space)">||</button>
+                <button class="tool-btn time-btn active" data-speed="1" style="padding: 6px 12px; font-size: 0.85rem;" title="Normal (1)">></button>
+                <button class="tool-btn time-btn" data-speed="2" style="padding: 6px 12px; font-size: 0.85rem;" title="Fast (2)">>></button>
+                <button class="tool-btn time-btn" data-speed="3" style="padding: 6px 12px; font-size: 0.85rem;" title="Fastest (3)">>>></button>
             </div>
         </header>
 
@@ -90,10 +91,17 @@
             <details class="tool-category">
                 <summary>System & Economy</summary>
                 <div class="category-content tool-grid">
-                    <button class="tool-btn" id="btn-budget" style="border-left: 4px solid #a855f7; grid-column: span 2;">Budget & Finance</button>
-                    <button class="tool-btn" id="btn-save">Save</button>
-                    <button class="tool-btn" id="btn-reset" style="border-left: 4px solid #ef4444;">Reset</button>
-                </div>
+        <nav class="nav-controls">
+            <div class="speed-controls">
+                <button class="time-btn" data-speed="0" title="Pause (Space)">||</button>
+                <button class="time-btn active" data-speed="1" title="Normal (1)">></button>
+                <button class="time-btn" data-speed="2" title="Fast (2)">>></button>
+                <button class="time-btn" data-speed="3" title="Fastest (3)">>>></button>
+            </div>
+            <button id="btn-budget" class="action-btn">Finance</button>
+            <button id="btn-save" class="action-btn">Save</button>
+            <button id="btn-reset" class="action-btn outline">Reset World</button>
+        </nav>        </div>
             </details>
         </aside>
 

@@ -9,6 +9,9 @@ export const TILES = {
     RES_1X2: 16, RES_2X1: 17, RES_1X3: 18, RES_3X1: 19,
     COM_1X2: 20, COM_2X1: 21, COM_1X3: 22, COM_3X1: 23,
     IND_1X2: 24, IND_2X1: 25, IND_1X3: 26, IND_3X1: 27,
+    RES_LOW_2X2: 38, RES_LOW_3X3: 39,
+    COM_LOW_2X2: 40, COM_LOW_3X3: 41,
+    IND_LOW_2X2: 42, IND_LOW_3X3: 43,
     WATER: 28, ZONE_DENSE_RES: 29, ZONE_DENSE_COM: 30, ZONE_DENSE_IND: 31, WATER_PUMP: 32,
     POLICE: 33, PARK: 34, SCHOOL: 35, HOSPITAL: 36, BRIDGE: 37
 };
@@ -63,7 +66,7 @@ export const BuildingRegistry = {
     'water-pump': {
         name: 'Water Pump', isTool: true, tileId: TILES.WATER_PUMP,
         width: 1, height: 1, cost: 100, maintenance: 10,
-        consumption: { power: 2 }, output: { water: 30 }
+        consumption: { power: 2 }, output: { water: 250 }
     },
     'police': {
         name: 'Police Station', isTool: true, tileId: TILES.POLICE,
@@ -111,6 +114,14 @@ export const BuildingRegistry = {
         name: 'Rowhomes', isTool: false, tileId: TILES.RES_2X1, zoneType: TILES.ZONE_RES,
         width: 2, height: 1, population: 25, consumption: { power: 2 }, output: {}
     },
+    'bld-res-low-3x3': {
+        name: 'Low Density Estate', isTool: false, tileId: TILES.RES_LOW_3X3, zoneType: TILES.ZONE_RES,
+        width: 3, height: 3, population: 30, minDesirability: 50, consumption: { power: 3, water: 2 }, output: {}
+    },
+    'bld-res-low-2x2': {
+        name: 'Suburban House', isTool: false, tileId: TILES.RES_LOW_2X2, zoneType: TILES.ZONE_RES,
+        width: 2, height: 2, population: 15, minDesirability: 40, consumption: { power: 2, water: 1 }, output: {}
+    },
     'bld-res-1x1': {
         name: 'House', isTool: false, tileId: TILES.BLD_RES, zoneType: TILES.ZONE_RES,
         width: 1, height: 1, population: 10, consumption: { power: 1 }, output: {}
@@ -140,6 +151,14 @@ export const BuildingRegistry = {
     'bld-com-2x1': {
         name: 'Retail Outlet', isTool: false, tileId: TILES.COM_2X1, zoneType: TILES.ZONE_COM,
         width: 2, height: 1, jobs: 15, taxMultiplier: 2.2, consumption: { power: 2 }, output: {}
+    },
+    'bld-com-low-3x3': {
+        name: 'Big Box Store', isTool: false, tileId: TILES.COM_LOW_3X3, zoneType: TILES.ZONE_COM,
+        width: 3, height: 3, jobs: 40, taxMultiplier: 2.2, consumption: { power: 3, water: 2 }, output: {}
+    },
+    'bld-com-low-2x2': {
+        name: 'Supermarket', isTool: false, tileId: TILES.COM_LOW_2X2, zoneType: TILES.ZONE_COM,
+        width: 2, height: 2, jobs: 20, taxMultiplier: 2.1, consumption: { power: 2, water: 1 }, output: {}
     },
     'bld-com-1x1': {
         name: 'Small Shop', isTool: false, tileId: TILES.BLD_COM, zoneType: TILES.ZONE_COM,
@@ -171,9 +190,17 @@ export const BuildingRegistry = {
         name: 'Logistic Depot', isTool: false, tileId: TILES.IND_2X1, zoneType: TILES.ZONE_IND,
         width: 2, height: 1, jobs: 20, taxMultiplier: 3.2, consumption: { power: 4 }, output: {}
     },
+    'bld-ind-low-3x3': {
+        name: 'Large Warehouse', isTool: false, tileId: TILES.IND_LOW_3X3, zoneType: TILES.ZONE_IND,
+        width: 3, height: 3, jobs: 50, taxMultiplier: 1.5, consumption: { power: 5, water: 2 }, output: {}
+    },
+    'bld-ind-low-2x2': {
+        name: 'Medium Warehouse', isTool: false, tileId: TILES.IND_LOW_2X2, zoneType: TILES.ZONE_IND,
+        width: 2, height: 2, jobs: 25, taxMultiplier: 1.5, consumption: { power: 3, water: 1 }, output: {}
+    },
     'bld-ind-1x1': {
-        name: 'Workshop', isTool: false, tileId: TILES.BLD_IND, zoneType: TILES.ZONE_IND,
-        width: 1, height: 1, jobs: 10, taxMultiplier: 3, consumption: { power: 2 }, output: {}
+        name: 'Small Factory', isTool: false, tileId: TILES.BLD_IND, zoneType: TILES.ZONE_IND,
+        width: 1, height: 1, jobs: 10, taxMultiplier: 1.5, consumption: { power: 2 }, output: {}
     }
 };
 

@@ -46,18 +46,18 @@ This document organizes the core features of SimCity 2000 into a structured back
 
 ### MVP 1: The Core Loop (Micropolis Baseline)
 *Focus: Get the engine to simulate basic growth without overly complex dependencies.*
-- [ ] **Grid & Camera:** Basic 2D grid rendering, panning, zooming.
-- [ ] **Zoning Tools:** Ability to paint Light R, C, and I zones.
-- [ ] **Power Simulation:** Place a power plant; implement power propagation automatically along road networks. Include SC2000 shortage logic (rolling brownouts, flashing power symbols, eventual building abandonment).
-- [ ] **Basic Growth:** RCI zones develop 1x1 or 2x2 buildings if powered and connected to basic roads.
-- [ ] **Time & Demand:** Simple ticker. Rudimentary RCI demand formula (e.g., people need jobs -> I/C demand; jobs need people -> R demand).
+- [x] **Grid & Camera:** Basic 2D grid rendering, panning, zooming.
+- [x] **Zoning Tools:** Ability to paint Light R, C, and I zones.
+- [x] **Power Simulation:** Place a power plant; implement power propagation automatically along road networks. Include SC2000 shortage logic (rolling brownouts, flashing power symbols, eventual building abandonment).
+- [x] **Basic Growth:** RCI zones develop 1x1 or 2x2 buildings if powered and connected to basic roads.
+- [x] **Time & Demand:** Simple ticker. Rudimentary RCI demand formula (e.g., people need jobs -> I/C demand; jobs need people -> R demand).
 
 ### MVP 2: Advanced Utilities & Advanced Zoning
 *Focus: Deepening the requirements for higher-level building growth.*
-- [ ] **Dense Zoning:** Add Dense R, C, I zoning options.
-- [ ] **Water System:** Implement water pumps and automatic water propagation along roads. Include SC2000 shortage logic (dense buildings flash water symbols and abandon if dry).
-- [ ] **Building Merging:** Algorithm to spawn 3x3 structures under high land value, dense zoning, and water supply.
-- [ ] **Bulldozer Tool:** Clearing terrain and destroying buildings.
+- [x] **Dense Zoning:** Add Dense R, C, I zoning options.
+- [x] **Water System:** Implement water pumps and automatic water propagation along roads. Include SC2000 shortage logic (dense buildings flash water symbols and abandon if dry).
+- [x] **Building Merging:** Algorithm to spawn 3x3 structures under high land value, dense zoning, and water supply.
+- [x] **Bulldozer Tool:** Clearing terrain and destroying buildings.
 
 ### MVP 3: Desirability, Services, & Land Value
 *Focus: Giving the simulation a soul (happiness, safety, and health).*

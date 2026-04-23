@@ -106,30 +106,7 @@ export class GameState {
         if (this.currentTool === 'select') return;
         
         if (this.currentTool === 'bulldoze') {
-            const cost = GlobalConfig.bulldozeCost;
-            const currentData = this.getTile(x, y);
-            if (currentData === TILES.EMPTY) return;
-
-            if (this.money >= cost) {
-                this.money -= cost;
-                
-                const structure = this.findAnchor(x, y);
-                
-                if (structure) {
-                    const ent = structure.ent;
-                    // Option B check: Does this entity have a zone footprint? Revert to it! 
-                    // Otherwise revert to Grass (TILES.EMPTY)
-                    const revertTile = ent.zoneType ? ent.zoneType : TILES.EMPTY;
-                    
-                    for (let dy = 0; dy < ent.height; dy++) {
-                        for (let dx = 0; dx < ent.width; dx++) {
-                            this.setTile(structure.x + dx, structure.y + dy, revertTile);
-                        }
-                    }
-                } else {
-                    this.setTile(x, y, TILES.EMPTY); // fallback
-                }
-                
+            if (this.doBulldoze(x, y)) {
                 this.recalculatePower();
                 this.recalculateWater();
                 this.calculateEconomyProjections();
@@ -173,6 +150,34 @@ export class GameState {
         }
     }
 
+    doBulldoze(x, y) {
+        const cost = GlobalConfig.bulldozeCost;
+        const currentData = this.getTile(x, y);
+        if (currentData === TILES.EMPTY || currentData === TILES.WATER) return true; // nothing to bulldoze
+
+        if (this.money >= cost) {
+            this.money -= cost;
+            
+            const structure = this.findAnchor(x, y);
+            
+            if (structure) {
+                const ent = structure.ent;
+                let revertTile = ent.zoneType ? ent.zoneType : TILES.EMPTY;
+                if (ent.tileId === TILES.BRIDGE) revertTile = TILES.WATER;
+                
+                for (let dy = 0; dy < ent.height; dy++) {
+                    for (let dx = 0; dx < ent.width; dx++) {
+                        this.setTile(structure.x + dx, structure.y + dy, revertTile);
+                    }
+                }
+            } else {
+                this.setTile(x, y, TILES.EMPTY); // fallback
+            }
+            return true;
+        }
+        return false;
+    }
+
     placeToolInternal(tool, x, y) {
         if (!BuildingRegistry[tool]) return;
         
@@ -182,6 +187,7 @@ export class GameState {
         // Bounds check
         if (x + ent.width > GRID_SIZE || y + ent.height > GRID_SIZE) return;
 
+        let tilesToBulldoze = [];
         // Collision check
         for (let dy = 0; dy < ent.height; dy++) {
             for (let dx = 0; dx < ent.width; dx++) {
@@ -191,9 +197,21 @@ export class GameState {
                         // Allow rewriting a light zone with a dense zone
                     } else if (tool === 'bridge' && targetTile === TILES.WATER) {
                         // Allow placing a bridge over water
+                    } else if (tool === 'road' && targetTile !== TILES.WATER && targetTile !== TILES.ROAD && targetTile !== TILES.BRIDGE) {
+                        // Allow road over anything except water/road. Auto-bulldoze it!
+                        tilesToBulldoze.push({bx: x + dx, by: y + dy});
                     } else {
                         return; // abort
                     }
+                }
+            }
+        }
+
+        // Auto-bulldoze for roads
+        if (tilesToBulldoze.length > 0) {
+            for (const t of tilesToBulldoze) {
+                if (!this.doBulldoze(t.bx, t.by)) {
+                     return; // abort if we ran out of money for bulldozing
                 }
             }
         }
@@ -819,20 +837,30 @@ export class GameState {
                 const idx = y * GRID_SIZE + x;
                 const tile = this.grid[idx];
                 
+                let baseZoneType = null;
                 if ([TILES.ZONE_RES, TILES.ZONE_COM, TILES.ZONE_IND, TILES.ZONE_DENSE_RES, TILES.ZONE_DENSE_COM, TILES.ZONE_DENSE_IND].includes(tile)) {
+                    baseZoneType = tile;
+                } else {
+                    const anchorInfo = this.findAnchor(x, y);
+                    if (anchorInfo && anchorInfo.ent && anchorInfo.ent.zoneType && !anchorInfo.ent.isTool) {
+                        baseZoneType = anchorInfo.ent.zoneType;
+                    }
+                }
+
+                if (baseZoneType) {
                     if (this.powerGrid[idx]) {
                         
                         let demandVal = 0;
-                        if (tile === TILES.ZONE_RES || tile === TILES.ZONE_DENSE_RES) demandVal = this.demand.res;
-                        if (tile === TILES.ZONE_COM || tile === TILES.ZONE_DENSE_COM) demandVal = this.demand.com;
-                        if (tile === TILES.ZONE_IND || tile === TILES.ZONE_DENSE_IND) demandVal = this.demand.ind;
+                        if (baseZoneType === TILES.ZONE_RES || baseZoneType === TILES.ZONE_DENSE_RES) demandVal = this.demand.res;
+                        if (baseZoneType === TILES.ZONE_COM || baseZoneType === TILES.ZONE_DENSE_COM) demandVal = this.demand.com;
+                        if (baseZoneType === TILES.ZONE_IND || baseZoneType === TILES.ZONE_DENSE_IND) demandVal = this.demand.ind;
 
                         const r = Math.random() * GlobalConfig.spawnProbabilityDenom;
 
                         if (demandVal > r) {
                             const localDesirability = this.desirabilityGrid[idx];
                             const allowedBps = this.blueprints.filter(b => 
-                                b.zoneType === tile && 
+                                b.zoneType === baseZoneType && 
                                 (!b.minDesirability || localDesirability >= b.minDesirability)
                             );
                             
@@ -840,17 +868,59 @@ export class GameState {
                                 if (x + bp.width > GRID_SIZE || y + bp.height > GRID_SIZE) continue;
                                 
                                 let fits = true;
+                                let anchorsInFootprint = new Set();
+
                                 for (let dy = 0; dy < bp.height; dy++) {
                                     for (let dx = 0; dx < bp.width; dx++) {
-                                        if (this.grid[(y + dy) * GRID_SIZE + (x + dx)] !== tile) {
-                                            fits = false; break;
+                                        const nx = x + dx; const ny = y + dy;
+                                        const targetTile = this.grid[ny * GRID_SIZE + nx];
+                                        
+                                        if (targetTile === baseZoneType) {
+                                            // Empty zone, good
+                                            continue;
                                         }
+
+                                        // If it's an existing building/slot
+                                        const anchorInfo = this.findAnchor(nx, ny);
+                                        if (anchorInfo && anchorInfo.ent.zoneType === baseZoneType) {
+                                            // It must be strictly smaller to be overwritten (or same size if we just want random updates, but SC2000 consolidates)
+                                            if (anchorInfo.ent.width * anchorInfo.ent.height < bp.width * bp.height) {
+                                                anchorsInFootprint.add(`${anchorInfo.x},${anchorInfo.y}`);
+                                                continue;
+                                            }
+                                        }
+
+                                        fits = false; break;
                                     }
                                     if (!fits) break;
                                 }
 
+                                if (fits) {
+                                    if (anchorsInFootprint.size === 1) {
+                                        const singleAnchor = Array.from(anchorsInFootprint)[0];
+                                        const [ax, ay] = singleAnchor.split(',');
+                                        const existingTile = this.grid[parseInt(ay) * GRID_SIZE + parseInt(ax)];
+                                        if (existingTile === bp.tileId) fits = false; // Already this exact building
+                                    }
+                                }
+
                                 if (fits && this.hasRoadAccess(x, y, bp.width, bp.height)) {
                                     // Found a place for High-Density Block! Consume the zones.
+                                    
+                                    // First, bulldoze any existing smaller buildings we are replacing
+                                    for (const anchorStr of anchorsInFootprint) {
+                                        const [ax, ay] = anchorStr.split(',').map(Number);
+                                        const existingTile = this.grid[ay * GRID_SIZE + ax];
+                                        const ent = this.reverseRegistryMap[existingTile];
+                                        if (ent) {
+                                            for (let edy = 0; edy < ent.height; edy++) {
+                                                for (let edx = 0; edx < ent.width; edx++) {
+                                                    this.grid[(ay + edy) * GRID_SIZE + (ax + edx)] = baseZoneType;
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     for (let dy = 0; dy < bp.height; dy++) {
                                         for (let dx = 0; dx < bp.width; dx++) {
                                             if (dx === 0 && dy === 0) {
@@ -864,9 +934,9 @@ export class GameState {
                                     
                                     // Soft cap this tick directly so we don't spawn 10 skyscrapers simultaneously
                                     const area = bp.width * bp.height;
-                                    if (tile === TILES.ZONE_RES) this.demand.res -= area * GlobalConfig.demandReductionPerArea;
-                                    if (tile === TILES.ZONE_COM) this.demand.com -= area * GlobalConfig.demandReductionPerArea;
-                                    if (tile === TILES.ZONE_IND) this.demand.ind -= area * GlobalConfig.demandReductionPerArea;
+                                    if (baseZoneType === TILES.ZONE_RES) this.demand.res -= area * GlobalConfig.demandReductionPerArea;
+                                    if (baseZoneType === TILES.ZONE_COM) this.demand.com -= area * GlobalConfig.demandReductionPerArea;
+                                    if (baseZoneType === TILES.ZONE_IND) this.demand.ind -= area * GlobalConfig.demandReductionPerArea;
 
                                     break; 
                                 }

@@ -220,6 +220,21 @@ document.addEventListener('DOMContentLoaded', () => {
             cheatBuffer = "";
             console.log("Cheat activated: +₡10,000 funds!");
         }
+
+        // Speed Controls Keyboard Shortcuts
+        if (e.key === ' ' || e.key === '1' || e.key === '2' || e.key === '3') {
+            e.preventDefault(); // prevent scrolling
+            if (budgetModal && !budgetModal.classList.contains('hidden')) return; // Don't unpause in budget
+
+            let speed = gameSpeed;
+            if (e.key === ' ') speed = gameSpeed === 0 ? 1 : 0;
+            if (e.key === '1') speed = 1;
+            if (e.key === '2') speed = 2;
+            if (e.key === '3') speed = 3;
+
+            const btn = Array.from(timeButtons).find(b => parseInt(b.dataset.speed) === speed);
+            if (btn) btn.click();
+        }
     });
 
     // Ticker logic
@@ -254,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let lastTime = 0;
     let tickTimer = 0;
-    const BASE_TICK = GlobalConfig.baseTickMs; 
+    const speedIntervals = { 1: 1000, 2: 400, 3: 100 };
 
     function loop(time) {
         requestAnimationFrame(loop);
@@ -262,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = time;
 
         if (gameSpeed > 0) {
-            const currentInterval = BASE_TICK / gameSpeed;
+            const currentInterval = speedIntervals[gameSpeed] || 1000;
             tickTimer += dt;
             if (tickTimer > currentInterval) {
                 tickTimer -= currentInterval;
