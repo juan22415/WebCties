@@ -443,7 +443,7 @@ export class GameState {
                                 const nIdx = ny * GRID_SIZE + nx;
                                 const nTile = this.grid[nIdx];
                                 
-                                const isConductor = (nTile === TILES.ROAD || nTile === TILES.HIGHWAY || nTile === TILES.RAIL_CROSSING || this.powerOutputMap[nTile] > 0 || nTile === TILES.SLOT);
+                                const isConductor = (nTile === TILES.ROAD || nTile === TILES.HIGHWAY || nTile === TILES.BRIDGE || nTile === TILES.RAIL_CROSSING || this.powerOutputMap[nTile] > 0 || nTile === TILES.SLOT);
                                 
                                 if (isConductor) {
                                     if (!visitedConductors[nIdx]) {
@@ -535,7 +535,7 @@ export class GameState {
                                 const nIdx = ny * GRID_SIZE + nx;
                                 const nTile = this.grid[nIdx];
                                 
-                                const isPipe = (nTile === TILES.ROAD || nTile === TILES.HIGHWAY || nTile === TILES.RAIL_CROSSING || this.waterOutputMap[nTile] > 0 || nTile === TILES.SLOT);
+                                const isPipe = (nTile === TILES.ROAD || nTile === TILES.HIGHWAY || nTile === TILES.BRIDGE || nTile === TILES.RAIL_CROSSING || this.waterOutputMap[nTile] > 0 || nTile === TILES.SLOT);
                                 
                                 if (isPipe) {
                                     if (!visitedPipes[nIdx]) {
